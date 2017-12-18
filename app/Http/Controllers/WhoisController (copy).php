@@ -7,22 +7,6 @@ use Illuminate\Http\Request;
 use App\Whois;
 class WhoisController extends Controller
 {
-  public static $useful_object_regs=[
-  '/(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9]))) {0,1}- {0,1}((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))/',
-  '/(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])/',
-  '/(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){2}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])/',
-  '/(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){1}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])/'
-  ];
-  public static $all_key=[
-  'NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref',
-  'inetnum','aut-num','abuse-c','owner','ownerid','responsible','address',
-  'netname','descr','country','geoloc','language','org','sponsoring-org','admin-c',
-  'phone','owner-c','tech-c','status','remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt',
-  'inetrev','dns',
-  'Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update',
-  'IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date',
-  'created','last-modified','changed','source','parent'
-  ];
     //
     public function index(){
     	$count=Whois::count();
@@ -94,77 +78,33 @@ class WhoisController extends Controller
           $content=$result['content'];
           $object_items=array();
           $main_content="";
-          $objects_arr=explode("\n\n",$content);
-          foreach ($objects_arr as $object) 
+          $object_items=explode("\n\n",$content);
+          foreach ($object_items as $object_item) 
           {
-            foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
-              # code...
-              preg_match($useful_object_reg,$object,$matchs);
-              if (count($matchs)>0) {
-                $main_content=$object;
-                break 2;
-                # code...
-              }
+            if((strpos($object_item, "NetRange")!==false) || (strpos($object_item, "inetnum")!==false))
+            {
+              $main_content=$object_item;
             }
-            // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-            // {
-            //   $main_content=$item;
-            // }
           }
           $main_content_array=explode("\n", $main_content);
-          $item=array();
+          $attr_item=array();
           $i=0;
           $j=0;
-          $dns=array();
-          $dns_list=['nserver','nsstat','nslastaa'];
-          $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
-          $org_list=['org','Organization','Organization Name'];
-          //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-          foreach ($main_content_array as $line) {
-            foreach (WhoisController::$all_key as $key) {
-              # code...
-              $position=strpos($line, $key);
-              if ($position!==false & $position<=7){
-                $key_len=strlen($key);
-                $str=trim(substr($line, $position+$key_len));
-                if($str[0]!=':' & $str[0]!=']')
-                  continue;
-                $value=trim(substr($str, 1));
-                if(in_array($key, $array_key)){
-                  if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"][$key]=array();
-                  }
-                  array_push($main_content_array_k_v["whois"][$key],$value);
-                }
-                elseif (in_array($key, $dns_list)) {
-                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"]['dns']=array();
-                  }
-                  $dns[$key]=$value;
-                  if(count($dns)>=3){
-                    array_push($main_content_array_k_v["whois"]['dns'],$dns);
-                    $dns=array();
-                  }
-                }
-                else{
-                  $main_content_array_k_v["whois"][$key]=$value;
-                }
-                
-              }
+          $useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
+          foreach ($main_content_array as $value) {
+            $attr_item=explode(":", $value);
+            if(count($attr_item)<2){
+              continue;
             }
-            // $item=explode(":", $value);
-            // if(count($item)<2){
-            //   continue;
-            // }
-            // if($item[0]=="descr"){
-            //   $main_content_array_k_v["whois"]["descr"][$i++]=$item[1];
-            //   //$item[0]="descr".$i++;
-            // }elseif($item[0]=="remarks"){
-            //   $main_content_array_k_v["whois"]["remarks"][$j++]=$item[1];
-
-            // }else{
-            //   $main_content_array_k_v["whois"][$item[0]]=$item[1];
-            // }
+            if($attr_item[0]=="descr"){
+              $main_content_array_k_v["whois"]["descr"][$i++]=$attr_item[1];
+              //$item[0]="descr".$i++;
+            }elseif($attr_item[0]=="remarks"){
+              $main_content_array_k_v["whois"]["remarks"][$j++]=$attr_item[1];
+              //$item[0]="descr".$i++;
+            }else{
+              $main_content_array_k_v["whois"][$attr_item[0]]=$attr_item[1];
+            }
           }
           $date1="20170901-23:13:00";
           $main_content_array_k_v["whois"]["timestamp"]=$date1;
@@ -179,13 +119,10 @@ class WhoisController extends Controller
       fclose($fpw);
       print_r("completed!");
     }
-    /**
-    *this function query the whois info from db by the given ip file,and wirte them into a file
-    *it just extract the inetnum object and standardizing them
-    */
+
     public function whois_file_json_line(){
-      $fp=fopen("/data/all_ip.txt", "r");
       $fpw=fopen("/data/3689ip_json_3.txt", "w");
+      $fp=fopen("/data/all_ip.txt", "r");
       $ip_array=array();   
       $i=0;
       while(!feof($fp)){
@@ -227,9 +164,7 @@ class WhoisController extends Controller
           }
           $second=0;
           $ip_range="";
-          #this is for get the more accurate info from raw whois data
-          #no use because geting more accurate has done in whois_preprocess.py
-/*          foreach($rows as $row)
+          foreach($rows as $row)
           {
             $data=$row->content;
             preg_match_all("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) {0,1}- {0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/",$data, $ips,PREG_SET_ORDER);
@@ -250,14 +185,12 @@ class WhoisController extends Controller
                 }
               }
             }
-          }*/
+          }
           $content=$result['content'];
-          $objects_arr=array();
+          $items=array();
           $main_content="";
-          $objects_arr=explode("\n\n",$content);
-          #this is find main object and some use key-vlaue in main object
-          #no use because use reg
-/*          foreach ($items as $key => $item) 
+          $items=explode("\n\n",$content);
+          foreach ($items as $key => $item) 
           {
             if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
             {
@@ -280,64 +213,6 @@ class WhoisController extends Controller
             }else{
               $main_content_array_k_v[$ip]["whois"][$item[0]]=$item[1];
             }
-          }*/
-          foreach ($objects_arr as $object) 
-          {
-            foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
-              # code...
-              preg_match($useful_object_reg,$object,$matchs);
-              if (count($matchs)>0) {
-                $main_content=$object;
-                break 2;
-                # code...
-              }
-            }
-            // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-            // {
-            //   $main_content=$item;
-            // }
-          }
-          $main_content_array=explode("\n", $main_content);
-          $item=array();
-          $i=0;
-          $j=0;
-          $dns=array();
-          $dns_list=['nserver','nsstat','nslastaa'];
-          $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
-          $org_list=['org','Organization','Organization Name'];
-          //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-          foreach ($main_content_array as $line) {
-            foreach (WhoisController::$all_key as $key) {
-              # code...
-              $position=strpos($line, $key);
-              if ($position!==false & $position<=7){
-                $key_len=strlen($key);
-                $str=trim(substr($line, $position+$key_len));
-                if($str[0]!=':' & $str[0]!=']')
-                  continue;
-                $value=trim(substr($str, 1));
-                if(in_array($key, $array_key)){
-                  if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"][$key]=array();
-                  }
-                  array_push($main_content_array_k_v["whois"][$key],$value);
-                }
-                elseif (in_array($key, $dns_list)) {
-                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"]['dns']=array();
-                  }
-                  $dns[$key]=$value;
-                  if(count($dns)>=3){
-                    array_push($main_content_array_k_v["whois"]['dns'],$dns);
-                    $dns=array();
-                  }
-                }
-                else{
-                  $main_content_array_k_v["whois"][$key]=$value;
-                }
-                
-              }
-            }
           }
           $date1="20170901-23:13:00";
           $main_content_array_k_v[$ip]["whois"]["timestamp"]=$date1;
@@ -351,55 +226,19 @@ class WhoisController extends Controller
       fclose($fpw);
       print_r("completed!");
     }
-    #return whos json list by ip list
-    public function pull_ip_list(Request $request){
-        $ip_str=$request->ip_list;
-        #attention:param of shell need use '' tho entry it
-        $query="python ".base_path()."/get_json_from_db_by_ip_list.py '".$ip_str."'";
-        $json_list=shell_exec($query);
-        return $json_list;
-    }
-    /**
-    *this function query the whois info from db by the url request:whois_api?ip=
-    *it just extract the inetnum object and standardizing them
-    */
     public function whois_api(Request $request){
       $ip=$request->ip;
-      $flag=0;
-      $flag=$request->flag;
-      #online query
-      if ($flag==1)
-      {
-          $query ="python ".base_path()."/whois_all_complete.py ".$ip;
-          #system print result in the browser straightly
-          $json =shell_exec($query);
-          #print $raw;
-          return $json;
-      }
-      #query from db
-      $query ="python ".base_path()."/get_main_object_from_db.py ".$ip;
-      $json =shell_exec($query);
-      return $json;
-      /**
-      *deal by php,instead by python,above
-      */
       $result=array();
       $main_content_array_k_v=array();
-      $main_content_array_k_v["IP_addr"]=$ip;
+      $main_content_array_k_v["ip"]=$ip;
       //input is right ip
       if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
       {
         $ip_n = bindec(decbin(ip2long($ip)));
         $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
-        if(count($rows)<=0)
-        {
-          query_now($ip);
-          $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
-          if(count($rows)<=0)
-          {
-            $main_content_array_k_v["whois"]="";
-            return json_encode($result);
-          }
+        if(count($rows)<=0){
+          $main_content_array_k_v["whois"]="";
+          return json_encode($result);
         }
         $i=0;
         //init the distance
@@ -407,8 +246,7 @@ class WhoisController extends Controller
         $result['ip_begin']=$rows[0]['ip_begin'];
         $result['ip_end']=$rows[0]['ip_end'];
         $result['content']=$rows[0]['content'];
-        foreach ($rows as $key => $row) 
-        {
+        foreach ($rows as $key => $row) {
           if(($row['ip_end']-$row['ip_begin'])<$last_distance)
           {
             //choose the most accurate one
@@ -419,66 +257,41 @@ class WhoisController extends Controller
           }
         }
         $content=$result['content'];
-        $objects_arr=array();
+        $items=array();
         $main_content="";
-        $objects_arr=explode("\n\n",$content);
-
-        foreach ($objects_arr as $object) 
+        $items=explode("\n\n",$content);
+        $useful_object_list=[
+          '/inetnum {0,1}: {0,1}\d{1,3}\.\d{1,3}/',
+          '/NetRange {0,1}: {0,1}\d{1,3}\.\d{1,3}/',
+          '/Network Number {0,}\] {0,1}\d{1,3}\.\d{1,3}/',
+          '/IPv4 Address {0,}: {0,1}\d{1,3}\.\d{1,3}/'
+        ]
+        foreach ($items as $key => $item) 
         {
-          foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
-            # code...
-            preg_match($useful_object_reg,$object,$matchs);
-            if (count($matchs)>0) {
-              $main_content=$object;
-              break 2;
-              # code...
-            }
+          if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
+          {
+            $main_content=$item;
           }
-          // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-          // {
-          //   $main_content=$item;
-          // }
         }
         $main_content_array=explode("\n", $main_content);
         $item=array();
         $i=0;
         $j=0;
-        $dns=array();
-        $dns_list=['nserver','nsstat','nslastaa'];
-        $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
-        $org_list=['org','Organization','Organization Name'];
+
         //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-        foreach ($main_content_array as $line) {
-          foreach (WhoisController::$all_key as $key) {
-            # code...
-            $position=strpos($line, $key);
-            if ($position!==false & $position<=7){
-              $key_len=strlen($key);
-              $str=trim(substr($line, $position+$key_len));
-              if($str[0]!=':' & $str[0]!=']')
-                continue;
-              $value=trim(substr($str, 1));
-              if(in_array($key, $array_key)){
-                if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
-                  $main_content_array_k_v["whois"][$key]=array();
-                }
-                array_push($main_content_array_k_v["whois"][$key],$value);
-              }
-              elseif (in_array($key, $dns_list)) {
-                if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true){
-                  $main_content_array_k_v["whois"]['dns']=array();
-                }
-                $dns[$key]=$value;
-                if(count($dns)>=3){
-                  array_push($main_content_array_k_v["whois"]['dns'],$dns);
-                  $dns=array();
-                }
-              }
-              else{
-                $main_content_array_k_v["whois"][$key]=$value;
-              }
-              
-            }
+        foreach ($main_content_array as $key => $value) {
+          $item=explode(":", $value);
+          if(count($item)<2){
+            continue;
+          }
+          if($item[0]=="descr"){
+            $main_content_array_k_v["whois"]["descr"][$i++]=$item[1];
+            //$item[0]="descr".$i++;
+          }elseif($item[0]=="remarks"){
+            $main_content_array_k_v["whois"]["remarks"][$j++]=$item[1];
+
+          }else{
+            $main_content_array_k_v["whois"][$item[0]]=$item[1];
           }
         }
         //print_r($main_content_array_k_v["whois"]["remarks"]);
@@ -625,13 +438,13 @@ class WhoisController extends Controller
                   $total = Whois::where('content', 'like', '%'.$_POST['content'].'%')->count();
                 }
               }
-              else{//not isset($params->sort,this is true run.
+              else{//not isset($params->sort
                 if($_POST['search'] == 'ip'){
                   $ip=$_POST['content'];
                   $ip_n = bindec(decbin(ip2long($ip)));
                   $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
                   if(count($rows)>0){
-                    $rows=WhoisController::get_detail_one($rows);
+                    //$rows=WhoisController::get_detail_one($rows);
 
                   }
                   $total=count($rows);
@@ -660,7 +473,7 @@ class WhoisController extends Controller
               if ($_POST['search'] == 'ip'){
                 //$total = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
                 if($total<=0){
-                  WhoisController::query_now($ip);
+                  //WhoisController::query_now($ip);
                   $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
                   $total = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
                 }
