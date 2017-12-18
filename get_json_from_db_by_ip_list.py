@@ -7,7 +7,7 @@ import json
 import collections
 import sys
 from pymongo import MongoClient
-
+import ConfigParser
 
 
 def md5(str):
@@ -48,12 +48,12 @@ def get_useful_info_from_content_old(ip,content):
 def get_ip_range_object(content):
 	object_item_list=content.split("\n\n")
 	#choose the main object
-	ip_range_regs=[
-	r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9]))) {0,1}- {0,1}((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))',
-	r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])',
-	r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){2}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])',
-	r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){1}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])'
-	]
+	# ip_range_regs=[
+	# r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9]))) {0,1}- {0,1}((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))',
+	# r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){3}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])',
+	# r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){2}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])',
+	# r'(?:inetnum {0,1}: {0,1}|Network Number {0,}\] {0,1}|NetRange {0,1}: {0,1}|IPv4 Address {0,1}: {0,1})((?:(?:1[0-9][0-9]\.)|(?:2[0-4][0-9]\.)|(?:25[0-5]\.)|(?:0{0,3}[1-9][0-9]\.)|(?:0{0,3}[0-9]\.)){1}(?:(?:1[0-9][0-9])|(?:2[0-4][0-9])|(?:25[0-5])|(?:0{0,3}[1-9][0-9])|(?:0{0,3}[0-9])))\/((?:[1-2][0-9])|(?:3[0-2])|[0-9])'
+	# ]
 	useful_object_list=['inetnum','NetRange','Network Number','IPv4 Address']
 	for object_item in object_item_list:
 		for ip_range_reg in ip_range_regs:
@@ -74,38 +74,38 @@ def get_useful_info_from_content(ip,content):
 	dns=collections.OrderedDict()
 
 	#useful=['inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType']
-	all_key=[
-	'NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref',
-	'inetnum','aut-num','abuse-c','owner','ownerid','responsible','address',
-	'netname','descr','country','geoloc','language','org','sponsoring-org','admin-c',
-	'phone','owner-c','tech-c','status','remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt',
-	'inetrev','dns',
-	'Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update',
-	'IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date'
-	'created','last-modified','changed','source','parent'
-	]
+	# all_key=[
+	# 'NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref',
+	# 'inetnum','aut-num','abuse-c','owner','ownerid','responsible','address',
+	# 'netname','descr','country','geoloc','language','org','sponsoring-org','admin-c',
+	# 'phone','owner-c','tech-c','status','remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt',
+	# 'inetrev','dns',
+	# 'Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update',
+	# 'IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date',
+	# 'created','last-modified','changed','source','parent'
+	# ]
 
-	RIPE=['inetnum','netname','descr','country','geoloc','language','org','sponsoring-org','admin-c','tech-c','status',
-	'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','created','last-modified','source']
+	# RIPE=['inetnum','netname','descr','country','geoloc','language','org','sponsoring-org','admin-c','tech-c','status',
+	# 'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','created','last-modified','source']
 
-	APNIC=['inetnum','netname','descr','country','geoloc','language','admin-c','tech-c','status',
-	'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-irt','changed','source']
+	# APNIC=['inetnum','netname','descr','country','geoloc','language','admin-c','tech-c','status',
+	# 'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-irt','changed','source']
 
-	ARIN=['NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref']
+	# ARIN=['NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref']
 
-	LACNIC=['inetnum','aut-num','abuse-c','owner','ownerid','responsible','address','country',
-	'phone','owner-c','tech-c','status','inetrev','nserver','nsstat','nslastaa','created','changed']
+	# LACNIC=['inetnum','aut-num','abuse-c','owner','ownerid','responsible','address','country',
+	# 'phone','owner-c','tech-c','status','inetrev','nserver','nsstat','nslastaa','created','changed']
 
-	AFRINIC=['inetnum','netname','descr','country','org','admin-c','tech-c','status','remarks','notify',
-	'mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','source','parent']
+	# AFRINIC=['inetnum','netname','descr','country','org','admin-c','tech-c','status','remarks','notify',
+	# 'mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','source','parent']
 
-	JPNIC=['Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update']
+	# JPNIC=['Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update']
 
-	KRNIC=['IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date']
+	# KRNIC=['IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date']
 
-	dns_list=['nserver','nsstat','nslastaa']
-	array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns']
-	org_list=['org','Organization','Organization Name']
+	# dns_list=['nserver','nsstat','nslastaa']
+	# array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns']
+	# org_list=['org','Organization','Organization Name']
 	#main_content_array_k_v["whois"]["remarks"]=[]
 	#main_content_array_k_v["whois"]["dns"]=[]
 	for object_attr in object_attrs:
@@ -149,11 +149,31 @@ def get_useful_info_from_content(ip,content):
 	#print "\n"
 	return main_content_array_k_v
 
-conn=MongoClient('127.0.0.1',27017)
-db=conn.ly
-my_mongo=db.whois3
 
 def main():
+	###############################read configure#################################
+	cf = ConfigParser.ConfigParser()
+	cf.read("whois.config")
+	global ip_range_regs,all_key,dns_list,array_key,org_list
+	ip_range_regs=[]
+	regs=cf.items("ip_range_regs")
+	#print ip_range_regs
+	for reg in regs:
+		ip_range_regs.append(reg[1])
+	#print ip_range_regs[3]
+	str_key=cf.get("all_key","content")
+	all_key=eval(str_key)
+	#print all_key
+	# for k in all_key:
+	# 	print k
+	dns_list=eval(cf.get("information_struct","dns_list"))
+	array_key=eval(cf.get("information_struct","array_key"))
+	org_list=eval(cf.get("information_struct","org_list"))
+	###############################read configure#################################
+	
+	conn=MongoClient('127.0.0.1',27017)
+	db=conn.ly
+	my_mongo=db.whois3
 	json_list=[]
 	ip_str=sys.argv[1]
 	#print ip_str
