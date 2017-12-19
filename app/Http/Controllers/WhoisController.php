@@ -354,8 +354,12 @@ class WhoisController extends Controller
     #return whos json list by ip list
     public function pull_ip_list(Request $request){
         $ip_str=$request->ip_list;
+        $ip_str=urldecode($ip_str);
+        #return $ip_str;
         #attention:param of shell need use '' tho entry it
-        $query="python ".base_path()."/get_json_from_db_by_ip_list.py '".$ip_str."'";
+        /*$ip_str='103.218.124.14\n211.98.75.226\n154.24.8.30\n210.87.246.88\n222.141.218.230\n120.197.29.6\n58.215.48.180\n144.232.22.172\n203.170.200.142\n220.186.220.113\n202.109.164.31\n138.118.232.1\n201.251.35.193\n147.162.28.21';*/
+        $query="python ".base_path()."/get_json_from_db_by_ip_list.py  '".$ip_str."'";
+        #return $query;
         $json_list=shell_exec($query);
         return $json_list;
     }

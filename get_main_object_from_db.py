@@ -8,6 +8,39 @@ import collections
 import sys
 import ConfigParser
 from pymongo import MongoClient
+useful=['inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType']
+all_key=[
+'NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref',
+'inetnum','aut-num','abuse-c','owner','ownerid','responsible','address',
+'netname','descr','country','geoloc','language','org','sponsoring-org','admin-c',
+'phone','owner-c','tech-c','status','remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt',
+'inetrev','dns',
+'Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update',
+'IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date',
+'created','last-modified','changed','source','parent'
+]
+
+RIPE=['inetnum','netname','descr','country','geoloc','language','org','sponsoring-org','admin-c','tech-c','status',
+'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','created','last-modified','source']
+
+APNIC=['inetnum','netname','descr','country','geoloc','language','admin-c','tech-c','status',
+'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-irt','changed','source']
+
+ARIN=['NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref']
+
+LACNIC=['inetnum','aut-num','abuse-c','owner','ownerid','responsible','address','country',
+'phone','owner-c','tech-c','status','inetrev','nserver','nsstat','nslastaa','created','changed']
+
+AFRINIC=['inetnum','netname','descr','country','org','admin-c','tech-c','status','remarks','notify',
+'mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','source','parent']
+
+JPNIC=['Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update']
+
+KRNIC=['IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date']
+
+dns_list=['nserver','nsstat','nslastaa']
+array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns']
+org_list=['org','Organization','Organization Name']
 
 def md5(str):
     import hashlib
@@ -61,6 +94,7 @@ def get_ip_range_object(content):
 			if re.findall(ip_range_reg,object_item)!=[]:
 				print object_item
 				return object_item
+	#attention!!!maybe no return above!!!!!
 	return ""
 
 def get_useful_info_from_content(ip,content):
@@ -75,41 +109,6 @@ def get_useful_info_from_content(ip,content):
 	i=0
 	dns=collections.OrderedDict()
 
-	#useful=['inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType']
-	# all_key=[
-	# 'NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref',
-	# 'inetnum','aut-num','abuse-c','owner','ownerid','responsible','address',
-	# 'netname','descr','country','geoloc','language','org','sponsoring-org','admin-c',
-	# 'phone','owner-c','tech-c','status','remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt',
-	# 'inetrev','dns',
-	# 'Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update',
-	# 'IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date',
-	# 'created','last-modified','changed','source','parent'
-	# ]
-
-	# RIPE=['inetnum','netname','descr','country','geoloc','language','org','sponsoring-org','admin-c','tech-c','status',
-	# 'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','created','last-modified','source']
-
-	# APNIC=['inetnum','netname','descr','country','geoloc','language','admin-c','tech-c','status',
-	# 'remarks','notify','mnt-by','mnt-lower','mnt-routes','mnt-irt','changed','source']
-
-	# ARIN=['NetRange','CIDR','NetName','NetHandle','Parent','NetType','OriginAS','Organization','RegDate','Updated','Comment','Ref']
-
-	# LACNIC=['inetnum','aut-num','abuse-c','owner','ownerid','responsible','address','country',
-	# 'phone','owner-c','tech-c','status','inetrev','nserver','nsstat','nslastaa','created','changed']
-
-	# AFRINIC=['inetnum','netname','descr','country','org','admin-c','tech-c','status','remarks','notify',
-	# 'mnt-by','mnt-lower','mnt-routes','mnt-domains','mnt-irt','source','parent']
-
-	# JPNIC=['Network Number','Network Name','Administrative Contact','Technical Contact','Nameserver','Assigned Date','Return Date','Last Update']
-
-	# KRNIC=['IPv4 Address','Organization Name','Network Type','Address','Zip Code','Registration Date']
-
-	# dns_list=['nserver','nsstat','nslastaa']
-	# array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns']
-	# org_list=['org','Organization','Organization Name']
-	#main_content_array_k_v["whois"]["remarks"]=[]
-	#main_content_array_k_v["whois"]["dns"]=[]
 	for object_attr in object_attrs:
 		for key in all_key:
 			position=object_attr.find(key)
@@ -119,7 +118,8 @@ def get_useful_info_from_content(ip,content):
 				value=object_attr[position+len(key):].strip()
 				#value_position=position+len(key)+1 #+1 for : or ]
 				value=value[1:].strip()
-				value=value.decode('utf-8', errors='ignore').encode('utf-8')
+				#TODO
+				#value=value.decode('utf-8', errors='ignore').encode('utf-8')
 				if key in array_key:
 					if main_content_array_k_v["whois"].has_key(key):
 						main_content_array_k_v["whois"][key].append(value)

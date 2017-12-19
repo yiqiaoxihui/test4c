@@ -23,3 +23,4 @@ Route::get('whois_api','WhoisController@whois_api');
 Route::get('whois_file','WhoisController@whois_file');
 Route::get('whois_file1','WhoisController@whois_file1');
 Route::post('pull_ip_list','WhoisController@pull_ip_list');
+Route::get('pull_ip_list','WhoisController@pull_ip_list');
