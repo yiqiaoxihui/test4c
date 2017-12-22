@@ -29,17 +29,24 @@ class WhoisController extends Controller
     	echo $count;
         return view('whois', ['input' => '']);
     }
-    public function whois_file_json_array(){
-      $fpw=fopen("/data/3689ip_json_2.txt", "w");
-      $fp=fopen("/data/all_ip.txt", "r");
+    public function whois_file_json_array(Request $request){
+      /***********************test get ip from file*******************************/
+      $request_file=base_path()."/left_ip";
+      $result_path=base_path()."/result";
+      $fpw=fopen($result_path, "w");
+      $fp=fopen($request_file, "r");
       $ip_array=array();
+      $result_list=array();
       $i=0;
       while(!feof($fp)){
         $ip_array[$i]=fgets($fp);
-        $$ip_array[$i]=trim($$ip_array[$i]);
+        $ip_array[$i]=trim($ip_array[$i]);
         $i++;
       }
       fclose($fp);
+      /**********************end*test get ip from file****************************/
+      #for post ip_str
+      #$ip_array=split("\n", $request->ip_list);
       $ip_array=array_filter($ip_array);
       foreach ($ip_array as $ip) {
         $json="";
@@ -63,7 +70,8 @@ class WhoisController extends Controller
           $result['ip_begin']=$rows[0]['ip_begin'];
           $result['ip_end']=$rows[0]['ip_end'];
           $result['content']=$rows[0]['content'];
-          foreach ($rows as $row) {
+          foreach ($rows as $row) 
+          {
             if(($row['ip_end']-$row['ip_begin'])<$last_distance)
             {
               //choose the most accurate one
@@ -71,24 +79,6 @@ class WhoisController extends Controller
               $result['ip_begin']=$row['ip_begin'];
               $result['ip_end']=$row['ip_end'];
               $result['content']=$row['content'];
-            }
-            $data=$row->content;
-            preg_match_all("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) {0,1}- {0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/",$data, $ips,PREG_SET_ORDER);
-            if(count($ips)>1){
-              $ip_begin=bindec(decbin(ip2long($ips[count($ips)-1][1])));
-              $ip_end=bindec(decbin(ip2long($ips[count($ips)-1][2])));
-              if($ip_n>=$ip_begin && $ip_n<=$ip_end){
-                //choose the most accurate one
-                if(($ip_end-$ip_begin)<$last_distance){
-                  $second=1;
-                  $ip_range=$ips[count($ips)-1][0];
-                  $last_distance=$ip_end-$ip_begin;
-                  $result['ip_begin']=$row['ip_begin'];
-                  $result['ip_end']=$row['ip_end'];
-                  $result['content']=$row['content'];
-                }
-              }
-
             }
           }
           $content=$result['content'];
@@ -97,19 +87,15 @@ class WhoisController extends Controller
           $objects_arr=explode("\n\n",$content);
           foreach ($objects_arr as $object) 
           {
-            foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
-              # code...
+            foreach (WhoisController::$useful_object_regs as $useful_object_reg) 
+            {
               preg_match($useful_object_reg,$object,$matchs);
-              if (count($matchs)>0) {
+              if (count($matchs)>0) 
+              {
                 $main_content=$object;
                 break 2;
-                # code...
               }
             }
-            // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-            // {
-            //   $main_content=$item;
-            // }
           }
           $main_content_array=explode("\n", $main_content);
           $item=array();
@@ -122,7 +108,6 @@ class WhoisController extends Controller
           //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
           foreach ($main_content_array as $line) {
             foreach (WhoisController::$all_key as $key) {
-              # code...
               $position=strpos($line, $key);
               if ($position!==false & $position<=7){
                 $key_len=strlen($key);
@@ -136,12 +121,15 @@ class WhoisController extends Controller
                   }
                   array_push($main_content_array_k_v["whois"][$key],$value);
                 }
-                elseif (in_array($key, $dns_list)) {
-                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true){
+                elseif (in_array($key, $dns_list)) 
+                {
+                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true)
+                  {
                     $main_content_array_k_v["whois"]['dns']=array();
                   }
                   $dns[$key]=$value;
-                  if(count($dns)>=3){
+                  if(count($dns)>=3)
+                  {
                     array_push($main_content_array_k_v["whois"]['dns'],$dns);
                     $dns=array();
                   }
@@ -149,212 +137,33 @@ class WhoisController extends Controller
                 else{
                   $main_content_array_k_v["whois"][$key]=$value;
                 }
-                
               }
             }
-            // $item=explode(":", $value);
-            // if(count($item)<2){
-            //   continue;
-            // }
-            // if($item[0]=="descr"){
-            //   $main_content_array_k_v["whois"]["descr"][$i++]=$item[1];
-            //   //$item[0]="descr".$i++;
-            // }elseif($item[0]=="remarks"){
-            //   $main_content_array_k_v["whois"]["remarks"][$j++]=$item[1];
-
-            // }else{
-            //   $main_content_array_k_v["whois"][$item[0]]=$item[1];
-            // }
           }
           $date1="20170901-23:13:00";
           $main_content_array_k_v["whois"]["timestamp"]=$date1;
-          $json= json_encode($main_content_array_k_v);
+          array_push($result_list, $main_content_array_k_v);
+          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
         }else{
           $main_content_array_k_v["whois"]="";
-          $json= json_encode($main_content_array_k_v);
+          array_push($result_list, $main_content_array_k_v);
+          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
         }
-        fwrite($fpw, $json);
-        fwrite($fpw, "\n");
+        
+        // fwrite($fpw, $json);
+        // fwrite($fpw, "\n");
       }
       fclose($fpw);
+      $json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+      return $json;
       print_r("completed!");
     }
-    /**
-    *this function query the whois info from db by the given ip file,and wirte them into a file
-    *it just extract the inetnum object and standardizing them
-    */
-    public function whois_file_json_line(){
-      $fp=fopen("/data/all_ip.txt", "r");
-      $fpw=fopen("/data/3689ip_json_3.txt", "w");
-      $ip_array=array();   
-      $i=0;
-      while(!feof($fp)){
-        $ip_array[$i]=fgets($fp);
-        $ip_array[$i]=trim($ip_array[$i]);
-        $i++;
-      }
-      fclose($fp);
-      $ip_array=array_filter($ip_array);
-      foreach ($ip_array as $ip) {
-        $json="";
-        $result=array();
-        $result[$ip]["whois"]="";
-        if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
-        {
-          $ip_n = bindec(decbin(ip2long($ip)));
-          $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
-          if(count($rows)<=0){
-            $json= json_encode($result);
-            fwrite($fpw, $json);
-            fwrite($fpw, "\n");
-            continue;
-          }
-          $i=0;
-          //init the distance
-          $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
-          $result['ip_begin']=$rows[0]['ip_begin'];
-          $result['ip_end']=$rows[0]['ip_end'];
-          $result['content']=$rows[0]['content'];
-          foreach ($rows as $row) {
-            if(($row['ip_end']-$row['ip_begin'])<$last_distance)
-            {
-              //choose the most accurate one
-              $last_distance=$row['ip_end']-$row['ip_begin'];
-              $result['ip_begin']=$row['ip_begin'];
-              $result['ip_end']=$row['ip_end'];
-              $result['content']=$row['content'];
-            }
-          }
-          $second=0;
-          $ip_range="";
-          #this is for get the more accurate info from raw whois data
-          #no use because geting more accurate has done in whois_preprocess.py
-/*          foreach($rows as $row)
-          {
-            $data=$row->content;
-            preg_match_all("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) {0,1}- {0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/",$data, $ips,PREG_SET_ORDER);
-            if(count($ips)>1){
-              //print_r(count($ips));
-              //print_r($ips[count($ips)-1][1]);
-              $ip_begin=bindec(decbin(ip2long($ips[count($ips)-1][1])));
-              $ip_end=bindec(decbin(ip2long($ips[count($ips)-1][2])));
-              if($ip_n>=$ip_begin && $ip_n<=$ip_end){
-                //choose the most accurate one
-                if(($ip_end-$ip_begin)<$last_distance){
-                  $second=1;
-                  $ip_range=$ips[count($ips)-1][0];
-                  $last_distance=$ip_end-$ip_begin;
-                  $result['ip_begin']=$row['ip_begin'];
-                  $result['ip_end']=$row['ip_end'];
-                  $result['content']=$row['content'];
-                }
-              }
-            }
-          }*/
-          $content=$result['content'];
-          $objects_arr=array();
-          $main_content="";
-          $objects_arr=explode("\n\n",$content);
-          #this is find main object and some use key-vlaue in main object
-          #no use because use reg
-/*          foreach ($items as $key => $item) 
-          {
-            if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-            {
-              $main_content=$item;
-            }
-          }
-          $main_content_array=explode("\n", $main_content);
-          $main_content_array_k_v=array();
-          $item=array();
-          $i=0;
-          $useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-          foreach ($main_content_array as $value) {
-            $item=explode(":", $value);
-            if(count($item)<2){
-              continue;
-            }
-            if($item[0]=="descr"){
-              $main_content_array_k_v[$ip]["whois"]["descr"][$i++]=$item[1];
-              //$item[0]="descr".$i++;
-            }else{
-              $main_content_array_k_v[$ip]["whois"][$item[0]]=$item[1];
-            }
-          }*/
-          foreach ($objects_arr as $object) 
-          {
-            foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
-              # code...
-              preg_match($useful_object_reg,$object,$matchs);
-              if (count($matchs)>0) {
-                $main_content=$object;
-                break 2;
-                # code...
-              }
-            }
-            // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
-            // {
-            //   $main_content=$item;
-            // }
-          }
-          $main_content_array=explode("\n", $main_content);
-          $item=array();
-          $i=0;
-          $j=0;
-          $dns=array();
-          $dns_list=['nserver','nsstat','nslastaa'];
-          $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
-          $org_list=['org','Organization','Organization Name'];
-          //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-          foreach ($main_content_array as $line) {
-            foreach (WhoisController::$all_key as $key) {
-              # code...
-              $position=strpos($line, $key);
-              if ($position!==false & $position<=7){
-                $key_len=strlen($key);
-                $str=trim(substr($line, $position+$key_len));
-                if($str[0]!=':' & $str[0]!=']')
-                  continue;
-                $value=trim(substr($str, 1));
-                if(in_array($key, $array_key)){
-                  if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"][$key]=array();
-                  }
-                  array_push($main_content_array_k_v["whois"][$key],$value);
-                }
-                elseif (in_array($key, $dns_list)) {
-                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"]['dns']=array();
-                  }
-                  $dns[$key]=$value;
-                  if(count($dns)>=3){
-                    array_push($main_content_array_k_v["whois"]['dns'],$dns);
-                    $dns=array();
-                  }
-                }
-                else{
-                  $main_content_array_k_v["whois"][$key]=$value;
-                }
-                
-              }
-            }
-          }
-          $date1="20170901-23:13:00";
-          $main_content_array_k_v[$ip]["whois"]["timestamp"]=$date1;
-          $json= json_encode($main_content_array_k_v);
-        }else{
-          $json= json_encode($result);
-        }
-        fwrite($fpw, $json);
-        fwrite($fpw, "\n");
-      }
-      fclose($fpw);
-      print_r("completed!");
-    }
+
     #return whos json list by ip list
-    public function pull_ip_list(Request $request){
+    public function pull_ip_list(Request $request)
+    {
         $ip_str=$request->ip_list;
-        $ip_str=urldecode($ip_str);
+        #$ip_str=urldecode($ip_str);
         #return $ip_str;
         #attention:param of shell need use '' tho entry it
         /*$ip_str='103.218.124.14\n211.98.75.226\n154.24.8.30\n210.87.246.88\n222.141.218.230\n120.197.29.6\n58.215.48.180\n144.232.22.172\n203.170.200.142\n220.186.220.113\n202.109.164.31\n138.118.232.1\n201.251.35.193\n147.162.28.21';*/
@@ -374,16 +183,23 @@ class WhoisController extends Controller
       #online query
       if ($flag==1)
       {
-          $query ="python ".base_path()."/whois_all_complete.py ".$ip;
+          $query ="python ".base_path()."/whois_all_complete.py ".$ip." ".base_path()."/whois.config";
           #system print result in the browser straightly
           $json =shell_exec($query);
           #print $raw;
           return $json;
       }
       #query from db
-      $query ="python ".base_path()."/get_main_object_from_db.py ".$ip;
-      $json =shell_exec($query);
+      /********************************************************************/
+      /**
+      *problem:can not get result
+      *solve:the file path in python must be abspath!
+      */
+      $query ="python ".base_path()."/get_main_object_from_db.py ".$ip." ".base_path()."/whois.config";
+      $json = shell_exec($query);
+      #print_r($json);
       return $json;
+      /********************************************************************/
       /**
       *deal by php,instead by python,above
       */
@@ -798,5 +614,184 @@ class WhoisController extends Controller
             }
           }
         }
+    }
+    /**
+    *this function query the whois info from db by the given ip file,and wirte them into a file
+    *it just extract the inetnum object and standardizing them
+    */
+    public function whois_file_json_line(){
+      $fp=fopen("/data/all_ip.txt", "r");
+      $fpw=fopen("/data/3689ip_json_3.txt", "w");
+      $ip_array=array();   
+      $i=0;
+      while(!feof($fp)){
+        $ip_array[$i]=fgets($fp);
+        $ip_array[$i]=trim($ip_array[$i]);
+        $i++;
+      }
+      fclose($fp);
+      $ip_array=array_filter($ip_array);
+      foreach ($ip_array as $ip) {
+        $json="";
+        $result=array();
+        $result[$ip]["whois"]="";
+        if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
+        {
+          $ip_n = bindec(decbin(ip2long($ip)));
+          $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+          if(count($rows)<=0){
+            $json= json_encode($result);
+            fwrite($fpw, $json);
+            fwrite($fpw, "\n");
+            continue;
+          }
+          $i=0;
+          //init the distance
+          $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
+          $result['ip_begin']=$rows[0]['ip_begin'];
+          $result['ip_end']=$rows[0]['ip_end'];
+          $result['content']=$rows[0]['content'];
+          foreach ($rows as $row) {
+            if(($row['ip_end']-$row['ip_begin'])<$last_distance)
+            {
+              //choose the most accurate one
+              $last_distance=$row['ip_end']-$row['ip_begin'];
+              $result['ip_begin']=$row['ip_begin'];
+              $result['ip_end']=$row['ip_end'];
+              $result['content']=$row['content'];
+            }
+          }
+          #this is for get the more accurate info from raw whois data
+          #no use because geting more accurate has done in whois_preprocess.py
+/*        $second=0;
+          $ip_range="";
+          foreach($rows as $row)
+          {
+            $data=$row->content;
+            preg_match_all("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) {0,1}- {0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/",$data, $ips,PREG_SET_ORDER);
+            if(count($ips)>1){
+              //print_r(count($ips));
+              //print_r($ips[count($ips)-1][1]);
+              $ip_begin=bindec(decbin(ip2long($ips[count($ips)-1][1])));
+              $ip_end=bindec(decbin(ip2long($ips[count($ips)-1][2])));
+              if($ip_n>=$ip_begin && $ip_n<=$ip_end){
+                //choose the most accurate one
+                if(($ip_end-$ip_begin)<$last_distance){
+                  $second=1;
+                  $ip_range=$ips[count($ips)-1][0];
+                  $last_distance=$ip_end-$ip_begin;
+                  $result['ip_begin']=$row['ip_begin'];
+                  $result['ip_end']=$row['ip_end'];
+                  $result['content']=$row['content'];
+                }
+              }
+            }
+          }*/
+          $content=$result['content'];
+          $objects_arr=array();
+          $main_content="";
+          $objects_arr=explode("\n\n",$content);
+          #this is find main object and some use key-vlaue in main object
+          #no use because use reg
+/*          foreach ($items as $key => $item) 
+          {
+            if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
+            {
+              $main_content=$item;
+            }
+          }
+          $main_content_array=explode("\n", $main_content);
+          $main_content_array_k_v=array();
+          $item=array();
+          $i=0;
+          $useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
+          foreach ($main_content_array as $value) {
+            $item=explode(":", $value);
+            if(count($item)<2){
+              continue;
+            }
+            if($item[0]=="descr"){
+              $main_content_array_k_v[$ip]["whois"]["descr"][$i++]=$item[1];
+              //$item[0]="descr".$i++;
+            }else{
+              $main_content_array_k_v[$ip]["whois"][$item[0]]=$item[1];
+            }
+          }*/
+          foreach ($objects_arr as $object) 
+          {
+            foreach (WhoisController::$useful_object_regs as $useful_object_reg) {
+              # code...
+              preg_match($useful_object_reg,$object,$matchs);
+              if (count($matchs)>0) {
+                $main_content=$object;
+                break 2;
+                # code...
+              }
+            }
+            // if((strpos($item, "NetRange")!==false) || (strpos($item, "inetnum")!==false))
+            // {
+            //   $main_content=$item;
+            // }
+          }
+          $main_content_array=explode("\n", $main_content);
+          $item=array();
+          $i=0;
+          $j=0;
+          $dns=array();
+          $dns_list=['nserver','nsstat','nslastaa'];
+          $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
+          $org_list=['org','Organization','Organization Name'];
+          //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
+          foreach ($main_content_array as $line) 
+          {
+            foreach (WhoisController::$all_key as $key) 
+            {
+              # code...
+              $position=strpos($line, $key);
+              if ($position!==false & $position<=7)
+              {
+                $key_len=strlen($key);
+                $str=trim(substr($line, $position+$key_len));
+                if($str[0]!=':' & $str[0]!=']')
+                  continue;
+                $value=trim(substr($str, 1));
+                if(in_array($key, $array_key))
+                {
+                  if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
+                    $main_content_array_k_v["whois"][$key]=array();
+                  }
+                  array_push($main_content_array_k_v["whois"][$key],$value);
+                }
+                elseif (in_array($key, $dns_list)) 
+                {
+                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true)
+                  {
+                    $main_content_array_k_v["whois"]['dns']=array();
+                  }
+                  $dns[$key]=$value;
+                  if(count($dns)>=3)
+                  {
+                    array_push($main_content_array_k_v["whois"]['dns'],$dns);
+                    $dns=array();
+                  }
+                }
+                else{
+                  $main_content_array_k_v["whois"][$key]=$value;
+                }
+                
+              }
+            }
+          }
+          $date1="20170901-23:13:00";
+          $main_content_array_k_v[$ip]["whois"]["timestamp"]=$date1;
+          $json= json_encode($main_content_array_k_v);
+        }else{
+          $json= json_encode($result);
+        }
+        fwrite($fpw, $json);
+        fwrite($fpw, "\n");
+      }
+      fclose($fpw);
+      print_r("completed!");
     }
 }

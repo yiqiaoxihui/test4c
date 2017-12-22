@@ -148,10 +148,7 @@ def get_useful_info_from_content(ip,content):
 
 	date1="20170901-09:13:00"
 	main_content_array_k_v["whois"]["timestamp"]=date1
-	#print main_content_array_k_v
-	jsonStr= json.dumps(main_content_array_k_v)
-	#print jsonStr
-	#print "\n"
+	#jsonStr= json.dumps(main_content_array_k_v)
 	return main_content_array_k_v
 
 
@@ -175,17 +172,21 @@ def main():
 	# array_key=eval(cf.get("information_struct","array_key"))
 	# org_list=eval(cf.get("information_struct","org_list"))
 	###############################read configure#################################
-
 	conn=MongoClient('127.0.0.1',27017)
 	db=conn.ly
 	my_mongo=db.whois3
 	json_list=[]
-	ip_str=sys.argv[1]
-	#print ip_str
-	ip_list=ip_str.split('\n')
-	#print ip_list
+	#if func by php,must use abspath!!!!!!!!!
+	fip=open(sys.argv[1],'r')
+	ip_list=fip.readlines()
+	fip.close()
+	#ip_list=sys.argv[1].split('\n')
 	for ip in ip_list:
 		ip=ip.strip()
+		m=re.match("^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$",ip)
+		if not m:
+			#print "error ip type:"+str(m)
+			continue
 		main_content_array_k_v={}
 		main_content_array_k_v[ip]={}
 		main_content_array_k_v[ip]["whois"]={}
@@ -223,8 +224,9 @@ def main():
 	# 		#print result['content']
 	# 		print ip
 		json_list.append(jsonStr)
-	str=json.dumps(json_list,indent=4)
-	print str
+		#print jsonStr
+	str1=json.dumps(json_list,indent=4)
+	print str1
 
 if __name__=="__main__":
 	main()
