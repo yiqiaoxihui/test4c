@@ -30,13 +30,13 @@ class WhoisController extends Controller
         return view('whois', ['input' => '']);
     }
     public function whois_file_json_array(Request $request){
+      $result_list=array();
       /***********************test get ip from file*******************************/
 /*      $request_file=base_path()."/left_ip";
       $result_path=base_path()."/result";
       $fpw=fopen($result_path, "w");
       $fp=fopen($request_file, "r");
       $ip_array=array();
-      $result_list=array();
       $i=0;
       while(!feof($fp)){
         $ip_array[$i]=fgets($fp);
@@ -62,8 +62,9 @@ class WhoisController extends Controller
           if(count($rows)<=0){
             $main_content_array_k_v['whois']="";
             $json= json_encode($main_content_array_k_v);
-            fwrite($fpw, $json);
-            fwrite($fpw, "\n");
+            array_push($result_list, $main_content_array_k_v);
+            //fwrite($fpw, $json);
+            //fwrite($fpw, "\n");
             continue;
           }
           $i=0;
@@ -155,7 +156,7 @@ class WhoisController extends Controller
         // fwrite($fpw, $json);
         // fwrite($fpw, "\n");
       }
-      fclose($fpw);
+      //fclose($fpw);
       $json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
       return $json;
       print_r("completed!");
