@@ -31,7 +31,7 @@ class WhoisController extends Controller
     }
     public function whois_file_json_array(Request $request){
       /***********************test get ip from file*******************************/
-      $request_file=base_path()."/left_ip";
+/*      $request_file=base_path()."/left_ip";
       $result_path=base_path()."/result";
       $fpw=fopen($result_path, "w");
       $fp=fopen($request_file, "r");
@@ -43,10 +43,12 @@ class WhoisController extends Controller
         $ip_array[$i]=trim($ip_array[$i]);
         $i++;
       }
-      fclose($fp);
+      fclose($fp);*/
       /**********************end*test get ip from file****************************/
+      /**********************end*test get ip from request****************************/
       #for post ip_str
-      #$ip_array=split("\n", $request->ip_list);
+      $ip_array=explode("\n", $request->ip_list);
+      /**********************end*test get ip from request****************************/
       $ip_array=array_filter($ip_array);
       foreach ($ip_array as $ip) {
         $json="";
