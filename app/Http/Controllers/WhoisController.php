@@ -54,12 +54,13 @@ class WhoisController extends Controller
         $json="";
         $result=array();
         $main_content_array_k_v=array();
-        $main_content_array_k_v['ip']=$ip;
+        $main_content_array_k_v['IP_addr']=$ip;
         if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
         {
           $ip_n = bindec(decbin(ip2long($ip)));
           $rows = Whois::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
-          if(count($rows)<=0){
+          if(count($rows)<=0)
+          {
             $main_content_array_k_v['whois']="";
             $json= json_encode($main_content_array_k_v);
             array_push($result_list, $main_content_array_k_v);
