@@ -334,6 +334,7 @@ class WhoisController extends Controller
       $rows=array();
       switch ($guess_server) {
         case 'whois.apnic.net':
+          //echo "apnic";
           $rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
           break;
         case 'whois.arin.net':
@@ -345,6 +346,7 @@ class WhoisController extends Controller
           $rows=WhoisController::query_from_local_mysql($ip);
           break;
         case 'whois.lacnic.net':
+          //echo "lacnic";
           $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
           break;
         default:
@@ -437,6 +439,7 @@ class WhoisController extends Controller
           $json= json_encode($main_content_array_k_v);
           return $json;
         }
+        //echo $main_content;
         $main_content_array=explode("\n", $main_content);
         $item=array();
         $i=0;
