@@ -130,7 +130,7 @@
         success:function(data){
           var content=data.message.content;
           console.log("id:"+id+" detail:"+content);
-          content=content.replace(/\\n/g,"</br>");
+          content=content.replace(/\n/g,"</br>");
           html.push('<p style="word-wrap:break-word; word-break:break-all; width:auto;height:400px;overflow-y:scroll;">' + content + '</p>');
         }
       });
