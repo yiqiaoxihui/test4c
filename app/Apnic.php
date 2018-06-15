@@ -6,6 +6,7 @@ use Jenssegers\Mongodb\Eloquent\Model as Eloquent;
 
 class Apnic extends Eloquent {
 
+	protected $connection="mongodb";
     protected $collection = 'apnic';
 
 }

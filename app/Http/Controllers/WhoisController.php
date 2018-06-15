@@ -8,6 +8,11 @@ use App\Whois;
 use App\Apnic;
 use App\Arin;
 use App\Lacnic;
+use App\Apnic_mysql;
+use App\Arin_mysql;
+use App\Apnic_cidr;
+use App\Arin_cidr;
+use DB;
 class WhoisController extends Controller
 {
     public static $ip_server=array(
@@ -329,17 +334,73 @@ class WhoisController extends Controller
       return $guess_server;
     }
     public function get_data_from_different_database($ip_n,$ip){
+      #$ip_n=1194896895;
+      #echo $ip_n;
       $guess_server=WhoisController::which_server($ip_n);
       //echo $guess_server;
       $rows=array();
       switch ($guess_server) {
         case 'whois.apnic.net':
           //echo "apnic";
-          $rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+          
+          #$str="select * from apnic where ip_end >=".$ip_n." limit 100";
+          for ($i=32; $i>0; $i--) {
+            $ip_predix=$ip_n & (~((1<<(32-$i))-1));
+            $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time')->join('apnic_cidr',function($join)use($ip_predix){
+              $join->on('apnic.id','=','apnic_cidr.fid')
+                   ->where('apnic_cidr.ip_range_predix','=',$ip_predix);
+            })->get();
+
+            $rows=json_decode($rows,true);
+            #$rows = Apnic::where('ip_end', '>=', $ip_n)->where('ip_begin', '<=', $ip_n)->limit(10000)->get();
+            #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
+            #$rows=$rows->get_whois;
+            if(count($rows)>0){
+              foreach ($rows as $row) {
+                if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
+                  // echo $row['content'];echo "</br>";
+                  // echo $ip_n;echo "</br>";
+                  // echo $row['ip_end'];echo "</br>";
+                  // echo "</br>";
+                  break 2;  
+                }
+              }
+              #echo $rows;
+            }
+          }
+
+          #$rows =Apnic_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
+          #echo $rows;
+          #$rows = DB::connection('mysql')->select('select * from apnic where ip_end >=1194896895 limit 100');
           break;
         case 'whois.arin.net':
           //echo "Arin";
-          $rows = Arin::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+          for ($i=32; $i>0; $i--) {
+            $ip_predix=$ip_n & (~((1<<(32-$i))-1));
+            $rows=DB::connection('mysql')->table('arin')->select('ip_begin','ip_end','content','time')->join('arin_cidr',function($join)use($ip_predix){
+              $join->on('arin.id','=','arin_cidr.fid')
+                   ->where('arin_cidr.ip_range_predix','=',$ip_predix);
+            })->get();
+
+            $rows=json_decode($rows,true);
+            #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
+            #$rows=$rows->get_whois;
+            if(count($rows)>0){
+              foreach ($rows as $row) {
+                if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
+                  // echo $row['content'];echo "</br>";
+                  // echo $ip_n;echo "</br>";
+                  // echo $row['ip_end'];echo "</br>";
+                  // echo "</br>";
+                  break 2;  
+                }
+              }
+              #echo $rows;
+            }
+          }
+          #$rows =Arin_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
+          #$rows =DB::connection('mysql')->select('select * from arin where ip_end >= ? limit 100',[$ip_n]);
+          #$rows = Arin::where('ip_end', '>=', $ip_n)->limit(100)->get();
           break;
         case 'whois.ripe.net':
         case 'whois.afrinic.net':
@@ -347,12 +408,12 @@ class WhoisController extends Controller
           break;
         case 'whois.lacnic.net':
           //echo "lacnic";
-          $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+          $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
           break;
         default:
           #其他小RIR，如韩国，日本，都放在lacnic
           #但是也有可能变更的ip，也放到这里面
-          $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+          $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
           # code...
           break;
       }
@@ -397,12 +458,30 @@ class WhoisController extends Controller
           $json= json_encode($main_content_array_k_v);
           return $json;
         }
-        $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
+        $last_distance=4228250625;
+        $result['ip_begin']=0;
+        $result['ip_end']=4228250625;
+        $result['content']="";
+        $result['time']="";
+        foreach ($rows as $row)
+        {
+
+          if(($row['ip_begin']<=$ip_n) && ($row['ip_end']-$row['ip_begin'])<$last_distance)
+          {
+            //choose the most accurate one
+            $last_distance=$row['ip_end']-$row['ip_begin'];
+            $result['ip_begin']=$row['ip_begin'];
+            $result['ip_end']=$row['ip_end'];
+            $result['content']=$row['content'];
+            $result['time']=$row['time'];
+          }
+        }
+/*        $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
         $result['ip_begin']=$rows[0]['ip_begin'];
         $result['ip_end']=$rows[0]['ip_end'];
         $result['content']=$rows[0]['content'];
         $result['time']=$rows[0]['time'];
-        foreach ($rows as $key => $row) 
+        foreach ($rows as $key => $row)
         {
           if(($row['ip_end']-$row['ip_begin'])<$last_distance)
           {
@@ -414,7 +493,7 @@ class WhoisController extends Controller
             $result['content']=$row['content'];
             $result['time']=$row['time'];
           }
-        }
+        }*/
         $content=$result['content'];
         //echo $content;
         $objects_arr=array();
@@ -493,6 +572,7 @@ class WhoisController extends Controller
       $ip_array=explode("\n", $request->ip_list);
       /**********************end*test get ip from request****************************/
       $ip_array=array_filter($ip_array);
+      $n=0;
       foreach ($ip_array as $ip) {
         $json="";
         $result=array();
@@ -512,16 +592,16 @@ class WhoisController extends Controller
             //fwrite($fpw, "\n");
             continue;
           }
-          $i=0;
           //init the distance
-          $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
-          $result['ip_begin']=$rows[0]['ip_begin'];
-          $result['ip_end']=$rows[0]['ip_end'];
-          $result['content']=$rows[0]['content'];
-          $result['time']=$rows[0]['time'];
+          $last_distance=4228250625;
+          $result['ip_begin']=0;
+          $result['ip_end']=4228250625;
+          $result['content']="";
+          $result['time']="";
           foreach ($rows as $row) 
           {
-            if(($row['ip_end']-$row['ip_begin'])<$last_distance)
+
+            if(($row['ip_begin']<=$ip_n) && ($row['ip_end']-$row['ip_begin'])<$last_distance)
             {
               //choose the most accurate one
               $last_distance=$row['ip_end']-$row['ip_begin'];
@@ -530,6 +610,16 @@ class WhoisController extends Controller
               $result['content']=$row['content'];
               $result['time']=$row['time'];
             }
+          }
+          if($result['content']=="")
+          {
+            $main_content_array_k_v['whois']="";
+            $json= json_encode($main_content_array_k_v);
+            array_push($result_list, $main_content_array_k_v);
+            //fwrite($fpw, $json);
+            //fwrite($fpw, "\n");
+            $n=$n+1;
+            continue;
           }
           $content=$result['content'];
           $object_items=array();
@@ -597,6 +687,7 @@ class WhoisController extends Controller
             }
           }
           $main_content_array_k_v["whois"]["timestamp"]=$result['time'];
+          #$main_content_array_k_v["whois"]["number"]=$n;
           array_push($result_list, $main_content_array_k_v);
           #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
         }else{
@@ -608,7 +699,7 @@ class WhoisController extends Controller
       //fclose($fpw);
       $json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
       return $json;
-      print_r("completed!");
+      #print_r("completed!");
     }
     public function ip_n_to_ip($ip,$ipn){
       $elements=explode(".", $ip);
@@ -659,20 +750,45 @@ class WhoisController extends Controller
         return $result;
       }
     }
-    public function get_detail_one($rows){
-        $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
+    public function whois_file_json_array1(Request $request){
+      $result_list=array();
+      $ip_array=explode("\n", $request->ip_list);
+      /**********************end*test get ip from request****************************/
+      $ip_array=array_filter($ip_array);
+      foreach ($ip_array as $ip) {
+        $json="";
         $result=array();
-        $result[0]=$rows[0];
-        foreach ($rows as $key => $row) {
-          if(($row['ip_end']-$row['ip_begin'])<$last_distance)
+        $main_content_array_k_v=array();
+        $main_content_array_k_v['IP_addr']=$ip;
+        if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
+        {
+          $ip_n = bindec(decbin(ip2long($ip)));
+
+          $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
+          if(count($rows)<=0)
           {
-            //choose the most accurate one
-            $last_distance=$row['ip_end']-$row['ip_begin'];
-            $result[0]=$row;
+            $main_content_array_k_v['whois']="";
+            $json= json_encode($main_content_array_k_v);
+            array_push($result_list, $main_content_array_k_v);
+            //fwrite($fpw, $json);
+            //fwrite($fpw, "\n");
+            continue;
           }
+          $i=0;
+          array_push($result_list, $main_content_array_k_v);
+          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+        }else{
+          $main_content_array_k_v["whois"]="";
+          array_push($result_list, $main_content_array_k_v);
+          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
         }
-        return $result;
+      }
+      //fclose($fpw);
+      $json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+      return $json;
+      print_r("completed!");
     }
+
     public function store()
     {
         $total=0;
@@ -692,7 +808,8 @@ class WhoisController extends Controller
                 {
                   $ip=$_POST['content'];
                   $ip_n = bindec(decbin(ip2long($ip)));
-                  $rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->orderBy($params->sort, $params->order)->get();
+                  $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
+                  //$rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->orderBy($params->sort, $params->order)->get();
                   if(count($rows)>0){
                     $rows=WhoisController::get_detail_one($rows);
                   }
@@ -707,10 +824,13 @@ class WhoisController extends Controller
                 if($_POST['search'] == 'ip'){
                   $ip=$_POST['content'];
                   $ip_n = bindec(decbin(ip2long($ip)));
-                  $rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
+                  //return $ip;
+                  echo $ip;
+                  $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
+                  
+                  //$rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
                   if(count($rows)>0){
                     $rows=WhoisController::get_detail_one($rows);
-
                   }
                   $total=count($rows);
                 }else{
@@ -722,8 +842,8 @@ class WhoisController extends Controller
                 //$total = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
                 if($total<=0){
                   WhoisController::query_now($ip);
-                  $rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
-                  $total = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
+                  $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
+                  $total = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
                 }
               }
             }
