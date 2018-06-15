@@ -1,1 +1,1 @@
-the web of whois query!
+the web of localizing whois query!
