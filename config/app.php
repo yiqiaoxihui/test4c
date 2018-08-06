@@ -120,9 +120,9 @@ return [
     |
     */
 
-    'log' => env('APP_LOG', 'syslog'),
+    'log' => env('APP_LOG', 'daily'),
 
-    'log_level' => env('APP_LOG_LEVEL', 'debug'),
+    'log_level' => env('APP_LOG_LEVEL', 'error'),
 
     /*
     |--------------------------------------------------------------------------
