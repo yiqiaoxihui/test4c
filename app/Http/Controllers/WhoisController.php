@@ -13,6 +13,18 @@ use App\Arin_mysql;
 use App\Apnic_cidr;
 use App\Arin_cidr;
 use DB;
+
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+// create a log channel
+$log = new Logger('name');
+$log->pushHandler(new StreamHandler('your.log', Logger::WARNING));
+
+// add records to the log
+$log->warning('Foo');
+$log->error('Bar');
+
 class WhoisController extends Controller
 {
     public static $ip_server=array(
@@ -339,84 +351,89 @@ class WhoisController extends Controller
       $guess_server=WhoisController::which_server($ip_n);
       //echo $guess_server;
       $rows=array();
-      switch ($guess_server) {
-        case 'whois.apnic.net':
-          //echo "apnic";
-          
-          #$str="select * from apnic where ip_end >=".$ip_n." limit 100";
-          for ($i=32; $i>0; $i--) {
-            $ip_predix=$ip_n & (~((1<<(32-$i))-1));
-            $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time')->join('apnic_cidr',function($join)use($ip_predix){
-              $join->on('apnic.id','=','apnic_cidr.fid')
-                   ->where('apnic_cidr.ip_range_predix','=',$ip_predix);
-            })->get();
+      try {
+        switch ($guess_server) {
+          case 'whois.apnic.net':
+            //echo "apnic";
+            
+            #$str="select * from apnic where ip_end >=".$ip_n." limit 100";
+            for ($i=32; $i>0; $i--) {
+              $ip_predix=$ip_n & (~((1<<(32-$i))-1));
+              $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time')->join('apnic_cidr',function($join)use($ip_predix){
+                $join->on('apnic.id','=','apnic_cidr.fid')
+                     ->where('apnic_cidr.ip_range_predix','=',$ip_predix);
+              })->get();
 
-            $rows=json_decode($rows,true);
-            #$rows = Apnic::where('ip_end', '>=', $ip_n)->where('ip_begin', '<=', $ip_n)->limit(10000)->get();
-            #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
-            #$rows=$rows->get_whois;
-            if(count($rows)>0){
-              foreach ($rows as $row) {
-                if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
-                  // echo $row['content'];echo "</br>";
-                  // echo $ip_n;echo "</br>";
-                  // echo $row['ip_end'];echo "</br>";
-                  // echo "</br>";
-                  break 2;  
+              $rows=json_decode($rows,true);
+              #$rows = Apnic::where('ip_end', '>=', $ip_n)->where('ip_begin', '<=', $ip_n)->limit(10000)->get();
+              #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
+              #$rows=$rows->get_whois;
+              if(count($rows)>0){
+                foreach ($rows as $row) {
+                  if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
+                    // echo $row['content'];echo "</br>";
+                    // echo $ip_n;echo "</br>";
+                    // echo $row['ip_end'];echo "</br>";
+                    // echo "</br>";
+                    break 2;  
+                  }
                 }
+                #echo $rows;
               }
-              #echo $rows;
             }
-          }
 
-          #$rows =Apnic_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
-          #echo $rows;
-          #$rows = DB::connection('mysql')->select('select * from apnic where ip_end >=1194896895 limit 100');
-          break;
-        case 'whois.arin.net':
-          //echo "Arin";
-          for ($i=32; $i>0; $i--) {
-            $ip_predix=$ip_n & (~((1<<(32-$i))-1));
-            $rows=DB::connection('mysql')->table('arin')->select('ip_begin','ip_end','content','time')->join('arin_cidr',function($join)use($ip_predix){
-              $join->on('arin.id','=','arin_cidr.fid')
-                   ->where('arin_cidr.ip_range_predix','=',$ip_predix);
-            })->get();
+            #$rows =Apnic_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
+            #echo $rows;
+            #$rows = DB::connection('mysql')->select('select * from apnic where ip_end >=1194896895 limit 100');
+            break;
+          case 'whois.arin.net':
+            //echo "Arin";
+            for ($i=32; $i>0; $i--) {
+              $ip_predix=$ip_n & (~((1<<(32-$i))-1));
+              $rows=DB::connection('mysql')->table('arin')->select('ip_begin','ip_end','content','time')->join('arin_cidr',function($join)use($ip_predix){
+                $join->on('arin.id','=','arin_cidr.fid')
+                     ->where('arin_cidr.ip_range_predix','=',$ip_predix);
+              })->get();
 
-            $rows=json_decode($rows,true);
-            #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
-            #$rows=$rows->get_whois;
-            if(count($rows)>0){
-              foreach ($rows as $row) {
-                if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
-                  // echo $row['content'];echo "</br>";
-                  // echo $ip_n;echo "</br>";
-                  // echo $row['ip_end'];echo "</br>";
-                  // echo "</br>";
-                  break 2;  
+              $rows=json_decode($rows,true);
+              #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
+              #$rows=$rows->get_whois;
+              if(count($rows)>0){
+                foreach ($rows as $row) {
+                  if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
+                    // echo $row['content'];echo "</br>";
+                    // echo $ip_n;echo "</br>";
+                    // echo $row['ip_end'];echo "</br>";
+                    // echo "</br>";
+                    break 2;  
+                  }
                 }
+                #echo $rows;
               }
-              #echo $rows;
             }
-          }
-          #$rows =Arin_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
-          #$rows =DB::connection('mysql')->select('select * from arin where ip_end >= ? limit 100',[$ip_n]);
-          #$rows = Arin::where('ip_end', '>=', $ip_n)->limit(100)->get();
-          break;
-        case 'whois.ripe.net':
-        case 'whois.afrinic.net':
-          $rows=WhoisController::query_from_local_mysql($ip);
-          break;
-        case 'whois.lacnic.net':
-          //echo "lacnic";
-          $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
-          break;
-        default:
-          #其他小RIR，如韩国，日本，都放在lacnic
-          #但是也有可能变更的ip，也放到这里面
-          $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
-          # code...
-          break;
+            #$rows =Arin_mysql::where('ip_end', '>=', $ip_n)->limit(5000)->get();
+            #$rows =DB::connection('mysql')->select('select * from arin where ip_end >= ? limit 100',[$ip_n]);
+            #$rows = Arin::where('ip_end', '>=', $ip_n)->limit(100)->get();
+            break;
+          case 'whois.ripe.net':
+          case 'whois.afrinic.net':
+            $rows=WhoisController::query_from_local_mysql($ip);
+            break;
+          case 'whois.lacnic.net':
+            //echo "lacnic";
+            $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
+            break;
+          default:
+            #其他小RIR，如韩国，日本，都放在lacnic
+            #但是也有可能变更的ip，也放到这里面
+            $rows = Lacnic::where('ip_end', '>=', $ip_n)->limit(1000)->get();
+            # code...
+            break;
+        }
+      } catch (Exception $e) {
+        
       }
+
       //echo $rows;
       return $rows;
     }
@@ -436,7 +453,6 @@ class WhoisController extends Controller
       $rows =array();
       if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
       {
-
         $ip_n = bindec(decbin(ip2long($ip)));
         switch ($flag) {
           case 0:
@@ -476,24 +492,6 @@ class WhoisController extends Controller
             $result['time']=$row['time'];
           }
         }
-/*        $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
-        $result['ip_begin']=$rows[0]['ip_begin'];
-        $result['ip_end']=$rows[0]['ip_end'];
-        $result['content']=$rows[0]['content'];
-        $result['time']=$rows[0]['time'];
-        foreach ($rows as $key => $row)
-        {
-          if(($row['ip_end']-$row['ip_begin'])<$last_distance)
-          {
-            
-            //choose the most accurate one
-            $last_distance=$row['ip_end']-$row['ip_begin'];
-            $result['ip_begin']=$row['ip_begin'];
-            $result['ip_end']=$row['ip_end'];
-            $result['content']=$row['content'];
-            $result['time']=$row['time'];
-          }
-        }*/
         $content=$result['content'];
         //echo $content;
         $objects_arr=array();
@@ -567,137 +565,185 @@ class WhoisController extends Controller
         return json_encode($result);
       }
     }
+
+
+
+
+
+
+
     public function whois_file_json_array(Request $request){
       $result_list=array();
       $ip_array=explode("\n", $request->ip_list);
       /**********************end*test get ip from request****************************/
       $ip_array=array_filter($ip_array);
       $n=0;
+      $fpw=fopen("/var/log/laravel.log", "w");
+
       foreach ($ip_array as $ip) {
         $json="";
         $result=array();
         $main_content_array_k_v=array();
         $main_content_array_k_v['IP_addr']=$ip;
+        //fwrite($fpw, $ip);
+        //fwrite($fpw, "\n");
         if(preg_match("/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/",$ip))
         {
-          $ip_n = bindec(decbin(ip2long($ip)));
-
-          $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
-          if(count($rows)<=0)
-          {
-            $main_content_array_k_v['whois']="";
-            $json= json_encode($main_content_array_k_v);
-            array_push($result_list, $main_content_array_k_v);
-            //fwrite($fpw, $json);
-            //fwrite($fpw, "\n");
-            continue;
-          }
-          //init the distance
-          $last_distance=4228250625;
-          $result['ip_begin']=0;
-          $result['ip_end']=4228250625;
-          $result['content']="";
-          $result['time']="";
-          foreach ($rows as $row) 
-          {
-
-            if(($row['ip_begin']<=$ip_n) && ($row['ip_end']-$row['ip_begin'])<$last_distance)
-            {
-              //choose the most accurate one
-              $last_distance=$row['ip_end']-$row['ip_begin'];
-              $result['ip_begin']=$row['ip_begin'];
-              $result['ip_end']=$row['ip_end'];
-              $result['content']=$row['content'];
-              $result['time']=$row['time'];
+            $ip_n = bindec(decbin(ip2long($ip)));
+            if($ip_n<=0 || $ip_n>=4294967295){
+              $main_content_array_k_v['whois']=array();
+              $json= json_encode($main_content_array_k_v);
+              array_push($result_list, $main_content_array_k_v);
+              //fwrite($fpw, $json);
+              //fwrite($fpw, "\n");
+              continue;
             }
-          }
-          if($result['content']=="")
-          {
-            $main_content_array_k_v['whois']="";
-            $json= json_encode($main_content_array_k_v);
-            array_push($result_list, $main_content_array_k_v);
-            //fwrite($fpw, $json);
-            //fwrite($fpw, "\n");
-            $n=$n+1;
-            continue;
-          }
-          $content=$result['content'];
-          $object_items=array();
-          $main_content="";
-          $objects_arr=explode("\n\n",$content);
-          foreach ($objects_arr as $object) 
-          {
-            foreach (WhoisController::$useful_object_regs as $useful_object_reg) 
+            $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
+            if(count($rows)<=0)
             {
-              preg_match($useful_object_reg,$object,$matchs);
-              if (count($matchs)>0) 
+              $main_content_array_k_v['whois']=array();
+              //$json= json_encode($main_content_array_k_v);
+              array_push($result_list, $main_content_array_k_v);
+              fwrite($fpw, "no query:");
+              fwrite($fpw, $ip);
+              fwrite($fpw, "\n");
+              continue;
+            }
+            //init the distance
+            $last_distance=4228250625;
+            $result['ip_begin']=0;
+            $result['ip_end']=4228250625;
+            $result['content']="";
+            $result['time']="";
+            foreach ($rows as $row)
+            {
+              if(($row['ip_begin']<=$ip_n) && ($row['ip_end']-$row['ip_begin'])<$last_distance)
               {
-                $main_content=$object;
-                break 2;
+                //choose the most accurate one
+                $last_distance=$row['ip_end']-$row['ip_begin'];
+                $result['ip_begin']=$row['ip_begin'];
+                $result['ip_end']=$row['ip_end'];
+                $result['content']=$row['content'];
+                $result['time']=$row['time'];
               }
             }
-          }
-          if($main_content=="")
-          {
-            $main_content_array_k_v['whois']="";
-            $json= json_encode($main_content_array_k_v);
-            array_push($result_list, $main_content_array_k_v);
-            //fwrite($fpw, $json);
-            //fwrite($fpw, "\n");
-            continue;
-          }
-          $main_content_array=explode("\n", $main_content);
-          $dns=array();
-          $dns_list=['nserver','nsstat','nslastaa'];
-          $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
-          $org_list=['org','Organization','Organization Name'];
-          //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
-          foreach ($main_content_array as $line) {
-            foreach (WhoisController::$all_key as $key) {
-              $position=strpos($line, $key);
-              if ($position!==false & $position<=7){
-                $key_len=strlen($key);
-                $str=trim(substr($line, $position+$key_len));
-                if($str[0]!=':' & $str[0]!=']')
-                  continue;
-                $value=trim(substr($str, 1));
-                if(in_array($key, $array_key)){
-                  if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
-                    $main_content_array_k_v["whois"][$key]=array();
-                  }
-                  array_push($main_content_array_k_v["whois"][$key],$value);
-                }
-                elseif (in_array($key, $dns_list)) 
+            if($result['content']=="")
+            {
+              $main_content_array_k_v['whois']=array();
+              //$json= json_encode($main_content_array_k_v);
+              array_push($result_list, $main_content_array_k_v);
+              fwrite($fpw, "no in query:");
+              fwrite($fpw, $ip);
+              fwrite($fpw, "\n");
+              $n=$n+1;
+              continue;
+            }
+            $content=$result['content'];
+            $object_items=array();
+            $main_content="";
+            $objects_arr=explode("\n\n",$content);
+            foreach ($objects_arr as $object) 
+            {
+              foreach (WhoisController::$useful_object_regs as $useful_object_reg) 
+              {
+                preg_match($useful_object_reg,$object,$matchs);
+                if (count($matchs)>0) 
                 {
-                  if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true)
-                  {
-                    $main_content_array_k_v["whois"]['dns']=array();
-                  }
-                  $dns[$key]=$value;
-                  if(count($dns)>=3)
-                  {
-                    array_push($main_content_array_k_v["whois"]['dns'],$dns);
-                    $dns=array();
-                  }
-                }
-                else{
-                  $main_content_array_k_v["whois"][$key]=$value;
+                  $main_content=$object;
+                  break 2;
                 }
               }
             }
+            if($main_content=="")
+            {
+              $main_content_array_k_v['whois']=array();
+              //$json= json_encode($main_content_array_k_v);
+              array_push($result_list, $main_content_array_k_v);
+              fwrite($fpw, "no main content:");
+              fwrite($fpw, $ip);
+              fwrite($fpw, "\n");
+              continue;
+            }
+
+            $main_content_array_k_v['whois']=array();
+            $main_content_array=explode("\n", $main_content);
+            $dns=array();
+            $dns_list=['nserver','nsstat','nslastaa'];
+            $array_key=['descr','remarks','Comment','mnt-by','mnt-lower','mnt-routes','mnt-domains','changed','dns'];
+            $org_list=['org','Organization','Organization Name'];
+            //$useful=array('inetnum','NetRange','descr','CIDR','NetName','Organization','Updated','NetType');
+            
+            foreach ($main_content_array as $line) {
+              /*
+              *deal this 196.192.16.0 - 196.192.31.255
+              *json_encode error:Malformed UTF-8 characters, possibly incorrectly encoded';
+              */
+              $line=utf8_encode($line);
+              if($line ==false){
+                //echo "errrrrrrrrrrrrrrrrrrr";
+                continue;
+              }
+              // var_dump($line);
+              // echo "</br>";
+              foreach (WhoisController::$all_key as $key) {
+                $position=strpos($line, $key);
+                if ($position!==false & $position<=7){
+                  $key_len=strlen($key);
+                  $str=trim(substr($line, $position+$key_len));
+                  if($str[0]!=':' & $str[0]!=']')
+                    continue;
+                  $value=trim(substr($str, 1));
+                  if(in_array($key, $array_key)){
+                    if(array_key_exists($key, $main_content_array_k_v["whois"])!==true){
+                      $main_content_array_k_v["whois"][$key]=array();
+                    }
+                    array_push($main_content_array_k_v["whois"][$key],$value);
+                  }
+                  elseif (in_array($key, $dns_list)) 
+                  {
+                    if(array_key_exists('dns', $main_content_array_k_v["whois"])!==true)
+                    {
+                      $main_content_array_k_v["whois"]['dns']=array();
+                    }
+                    $dns[$key]=$value;
+                    if(count($dns)>=3)
+                    {
+                      array_push($main_content_array_k_v["whois"]['dns'],$dns);
+                      $dns=array();
+                    }
+                  }
+                  else{
+                    $main_content_array_k_v["whois"][$key]=$value;
+                  }
+                }
+              }
+            }
+            $main_content_array_k_v["whois"]["timestamp"]=$result['time'];
+            #$main_content_array_k_v["whois"]["number"]=$n;
+            array_push($result_list, $main_content_array_k_v);
+            //$json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+            //var_dump($json);
+            //fwrite($fpw, $ip);
+            //fwrite($fpw, "\n");
+            #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+        }else{//error ip
+            fwrite($fpw, "error ip:");
+            fwrite($fpw, $ip);
+            fwrite($fpw, "\n");
+            $main_content_array_k_v["whois"]=array();
+            array_push($result_list, $main_content_array_k_v);
+            #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
           }
-          $main_content_array_k_v["whois"]["timestamp"]=$result['time'];
-          #$main_content_array_k_v["whois"]["number"]=$n;
-          array_push($result_list, $main_content_array_k_v);
-          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
-        }else{
-          $main_content_array_k_v["whois"]="";
-          array_push($result_list, $main_content_array_k_v);
-          #$json= json_encode($main_content_array_k_v,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
-        }
       }
-      //fclose($fpw);
+      fwrite($fpw, "query end\n");
+      //json_last_error()
       $json= json_encode($result_list,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+      if($json==false){
+        fwrite($fpw, "json_encode error\n");
+        fclose($fpw);
+        return json_encode(array());
+      }
+      fclose($fpw);
       return $json;
       #print_r("completed!");
     }
