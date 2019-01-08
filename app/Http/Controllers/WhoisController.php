@@ -288,7 +288,9 @@ class WhoisController extends Controller
     	#echo $count;
         return view('whois', ['input' => '']);
     }
-
+    /*
+    *从whois镜像服务查询ripe,afrinic组织的数据
+    */
     public function query_from_local_mysql($ip){
         $command="whois -h 10.10.11.130 -p 8888 ".$ip;
         //$result=shell_exec($command);
@@ -335,6 +337,9 @@ class WhoisController extends Controller
         }
         return $row;
     }
+    /*
+    *根据ip，判断该ip属于哪个组织，进而选择从哪个部分查询数据：1.whois镜像服务，2.Mysql数据库，3.mongodb数据库
+    */
     public function which_server($ipn){
       $guess_server="";
       foreach (WhoisController::$ip_server as $line) {
@@ -345,6 +350,9 @@ class WhoisController extends Controller
       }
       return $guess_server;
     }
+    /*
+    *具体从哪个部分查询数据，注意，mysql部分的数据使用前缀匹配查询
+    */
     public function get_data_from_different_database($ip_n,$ip){
       #$ip_n=1194896895;
       #echo $ip_n;
@@ -357,6 +365,7 @@ class WhoisController extends Controller
             //echo "apnic";
             
             #$str="select * from apnic where ip_end >=".$ip_n." limit 100";
+            //使用前缀匹配查询
             for ($i=32; $i>0; $i--) {
               $ip_predix=$ip_n & (~((1<<(32-$i))-1));
               $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time','apnic.id as id')->join('apnic_cidr',function($join)use($ip_predix){
@@ -395,7 +404,7 @@ class WhoisController extends Controller
                 $join->on('arin.id','=','arin_cidr.fid')
                      ->where('arin_cidr.ip_range_predix','=',$ip_predix);
               })->get();
-
+              //对象转数组
               $rows=json_decode($rows,true);
               #$rows =Apnic_cidr::where('ip_range_predix', $ip_predix)->get();
               #$rows=$rows->get_whois;
@@ -567,6 +576,7 @@ class WhoisController extends Controller
         return json_encode($result);
       }
     }
+    //从查询到的一组数据中，选择最细的一条数据，即范围最窄的数据。
     public function get_detail_one($rows){
         $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
         $result=array();
@@ -581,6 +591,9 @@ class WhoisController extends Controller
         }
         return $result;
     }
+    /*
+    *接受一串以换行符分隔的ip，进行批量查询，以json格式返回批量查询结果
+    */
     public function whois_file_json_array(Request $request){
       $result_list=array();
       $ip_array=explode("\n", $request->ip_list);
@@ -756,6 +769,9 @@ class WhoisController extends Controller
       return $json;
       #print_r("completed!");
     }
+    /*
+    *将12.1/16处理成 12.1.0.0-12.1.255.255
+    */
     public function ip_n_to_ip($ip,$ipn){
       $elements=explode(".", $ip);
       $len=count($elements);
@@ -843,7 +859,11 @@ class WhoisController extends Controller
       return $json;
       print_r("completed!");
     }
-
+    /*
+    *查询界面响应逻辑，包括：
+    *1.查询主界面默认显示的多条记录
+    *2.按ip查询（search=ip）及按内容查询的逻辑
+    */
     public function store()
     {
         $total=0;
@@ -857,25 +877,7 @@ class WhoisController extends Controller
             $params = json_decode($_POST['data']);
             if(strlen($_POST['content']) > 0)
             {
-              if(isset($params->sort))
-              {
-                if ($_POST['search'] == 'ip')
-                {
-                  $ip=$_POST['content'];
-                  $ip_n = bindec(decbin(ip2long($ip)));
-                  $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
-                  //$rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->orderBy($params->sort, $params->order)->get();
-                  if(count($rows)>0){
-                    $rows=WhoisController::get_detail_one($rows);
-                  }
-                  $total=count($rows);
-                  //$rows=array_slice($result,$params->offset,$params->limit);
-                }else{
-                  $rows = Apnic_mysql::where('content', 'like', $_POST['content'])->skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
-                  $total = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->count();
-                }
-              }
-              else{//not isset($params->sort,this is true run.
+              {//not isset($params->sort,this is true run.
                 if($_POST['search'] == 'ip'){
                   $ip=$_POST['content'];
                   $ip_n = bindec(decbin(ip2long($ip)));
@@ -888,30 +890,24 @@ class WhoisController extends Controller
                     $rows=WhoisController::get_detail_one($rows);
                   }
                   $total=count($rows);
-                  #var_dump($total);
-                  #var_dump($rows);
-                  #return;
+                  #没有结果，实时查询，入库，再二次查询
+                  if($total<=0){
+                    $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
+                    if (count($rows)==0){
+                      WhoisController::query_now($ip);
+                      $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
+                      $total = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
+                    }
+                  }
                 }else{
+                  #按content内容搜索
                   #权宜之计，仅仅从apnic数据库中按内容查询
                   $rows = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->skip($params->offset)->take($params->limit)->get();
                   $total = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->count();
                 }
               }
-              if ($_POST['search'] == 'ip'){
-                //$total = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
-                if($total<=0){
-                  #var_dump("query now");
-                  #WhoisController::query_now($ip);
-                  $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
-                  if (count($rows)==0){
-                    WhoisController::query_now($ip);
-                    $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
-                    $total = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
-                  }
-                }
-              }
             }
-            else{//all
+            else{//all，刷新页面是时，分页展示多条数据
               if(isset($params->sort)){
                 $rows = Apnic_mysql::skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
               }
@@ -920,28 +916,16 @@ class WhoisController extends Controller
               }
               $total = Apnic_mysql::count(); 
             }
-            foreach($rows as $row){
-
-              #$row->first = date('Y/m/d H:i:s', $row->first);
-              #$row->last = date('Y/m/d H:i:s', $row->last);
-            }
-            $idstart = (int) $params->offset + 1;
-            foreach($rows as $row)
-            {
-              #$row['id'] = 1;
-              $idstart ++;
-            }
 
             $data = array("rows" => $rows, "total" => $total);
-
           }
-          elseif($_POST['type'] == 'detail'){
-            $id = $_POST['id'];
-            $msg = Apnic_mysql::where('id', $id)->first();
-            #$msg->first = date('Y/m/d H:i:s', $msg->first);
-            #$msg->last = date('Y/m/d H:i:s', $msg->last);
-            $data = array('message' => $msg);
-          }
+          // elseif($_POST['type'] == 'detail'){ #此部分已经无用，之前用于点击列表拉去详细内容，但是上面已经将内容查询过，在前台js中已经更正
+          //   $id = $_POST['id'];
+          //   $msg = Apnic_mysql::where('id', $id)->first();
+          //   #$msg->first = date('Y/m/d H:i:s', $msg->first);
+          //   #$msg->last = date('Y/m/d H:i:s', $msg->last);
+          //   $data = array('message' => $msg);
+          // }
           return $data;
         }
     }#
