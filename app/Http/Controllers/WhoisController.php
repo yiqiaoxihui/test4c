@@ -285,7 +285,7 @@ class WhoisController extends Controller
     //
     public function index(){
     	$count=Apnic::count();
-    	echo $count;
+    	#echo $count;
         return view('whois', ['input' => '']);
     }
 
@@ -359,7 +359,7 @@ class WhoisController extends Controller
             #$str="select * from apnic where ip_end >=".$ip_n." limit 100";
             for ($i=32; $i>0; $i--) {
               $ip_predix=$ip_n & (~((1<<(32-$i))-1));
-              $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time')->join('apnic_cidr',function($join)use($ip_predix){
+              $rows=DB::connection('mysql')->table('apnic')->select('ip_begin','ip_end','content','time','apnic.id as id')->join('apnic_cidr',function($join)use($ip_predix){
                 $join->on('apnic.id','=','apnic_cidr.fid')
                      ->where('apnic_cidr.ip_range_predix','=',$ip_predix);
               })->get();
@@ -370,6 +370,7 @@ class WhoisController extends Controller
               #$rows=$rows->get_whois;
               if(count($rows)>0){
                 foreach ($rows as $row) {
+                  #$row['server']="apnic";
                   if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
                     // echo $row['content'];echo "</br>";
                     // echo $ip_n;echo "</br>";
@@ -390,7 +391,7 @@ class WhoisController extends Controller
             //echo "Arin";
             for ($i=32; $i>0; $i--) {
               $ip_predix=$ip_n & (~((1<<(32-$i))-1));
-              $rows=DB::connection('mysql')->table('arin')->select('ip_begin','ip_end','content','time')->join('arin_cidr',function($join)use($ip_predix){
+              $rows=DB::connection('mysql')->table('arin')->select('ip_begin','ip_end','content','time','arin.id as id')->join('arin_cidr',function($join)use($ip_predix){
                 $join->on('arin.id','=','arin_cidr.fid')
                      ->where('arin_cidr.ip_range_predix','=',$ip_predix);
               })->get();
@@ -400,6 +401,7 @@ class WhoisController extends Controller
               #$rows=$rows->get_whois;
               if(count($rows)>0){
                 foreach ($rows as $row) {
+                  #$row['server']="arin";
                   if($ip_n>=$row['ip_begin'] & $ip_n<=$row['ip_end']){
                     // echo $row['content'];echo "</br>";
                     // echo $ip_n;echo "</br>";
@@ -565,13 +567,20 @@ class WhoisController extends Controller
         return json_encode($result);
       }
     }
-
-
-
-
-
-
-
+    public function get_detail_one($rows){
+        $last_distance=$rows[0]['ip_end']-$rows[0]['ip_begin'];
+        $result=array();
+        $result[0]=$rows[0];
+        foreach ($rows as $key => $row) {
+          if(($row['ip_end']-$row['ip_begin'])<$last_distance)
+          {
+            //choose the most accurate one
+            $last_distance=$row['ip_end']-$row['ip_begin'];
+            $result[0]=$row;
+          }
+        }
+        return $result;
+    }
     public function whois_file_json_array(Request $request){
       $result_list=array();
       $ip_array=explode("\n", $request->ip_list);
@@ -862,8 +871,8 @@ class WhoisController extends Controller
                   $total=count($rows);
                   //$rows=array_slice($result,$params->offset,$params->limit);
                 }else{
-                  $rows = Apnic::where('content', 'like', $_POST['content'])->skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
-                  $total = Apnic::where('content', 'like', '%'.$_POST['content'].'%')->count();
+                  $rows = Apnic_mysql::where('content', 'like', $_POST['content'])->skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
+                  $total = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->count();
                 }
               }
               else{//not isset($params->sort,this is true run.
@@ -871,7 +880,7 @@ class WhoisController extends Controller
                   $ip=$_POST['content'];
                   $ip_n = bindec(decbin(ip2long($ip)));
                   //return $ip;
-                  echo $ip;
+                  #echo $ip;
                   $rows =WhoisController::get_data_from_different_database($ip_n,$ip);
                   
                   //$rows = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->get();
@@ -879,51 +888,63 @@ class WhoisController extends Controller
                     $rows=WhoisController::get_detail_one($rows);
                   }
                   $total=count($rows);
+                  #var_dump($total);
+                  #var_dump($rows);
+                  #return;
                 }else{
-                  $rows = Apnic::where('content', 'like', '%'.$_POST['content'].'%')->skip($params->offset)->take($params->limit)->get();
-                  $total = Apnic::where('content', 'like', '%'.$_POST['content'].'%')->count();
+                  #权宜之计，仅仅从apnic数据库中按内容查询
+                  $rows = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->skip($params->offset)->take($params->limit)->get();
+                  $total = Apnic_mysql::where('content', 'like', '%'.$_POST['content'].'%')->count();
                 }
               }
               if ($_POST['search'] == 'ip'){
                 //$total = Apnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
                 if($total<=0){
-                  WhoisController::query_now($ip);
+                  #var_dump("query now");
+                  #WhoisController::query_now($ip);
                   $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
-                  $total = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
+                  if (count($rows)==0){
+                    WhoisController::query_now($ip);
+                    $rows = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->skip($params->offset)->take($params->limit)->get();
+                    $total = Lacnic::where('ip_begin', '<=', $ip_n)->where('ip_end', '>=', $ip_n)->count();
+                  }
                 }
               }
             }
             else{//all
               if(isset($params->sort)){
-                $rows = Apnic::skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
+                $rows = Apnic_mysql::skip($params->offset)->take($params->limit)->orderBy($params->sort, $params->order)->get();
               }
               else{
-                $rows = Apnic::skip($params->offset)->take($params->limit)->get();
+                $rows = Apnic_mysql::skip($params->offset)->take($params->limit)->get();
               }
-              $total = Apnic::count(); 
+              $total = Apnic_mysql::count(); 
             }
             foreach($rows as $row){
-              $row->first = date('Y/m/d H:i:s', $row->first);
-              $row->last = date('Y/m/d H:i:s', $row->last);
+
+              #$row->first = date('Y/m/d H:i:s', $row->first);
+              #$row->last = date('Y/m/d H:i:s', $row->last);
             }
             $idstart = (int) $params->offset + 1;
             foreach($rows as $row)
             {
-              $row->id = $idstart;
+              #$row['id'] = 1;
               $idstart ++;
             }
+
             $data = array("rows" => $rows, "total" => $total);
+
           }
           elseif($_POST['type'] == 'detail'){
             $id = $_POST['id'];
-            $msg = Apnic::where('_id', $id)->first();
-            $msg->first = date('Y/m/d H:i:s', $msg->first);
-            $msg->last = date('Y/m/d H:i:s', $msg->last);
+            $msg = Apnic_mysql::where('id', $id)->first();
+            #$msg->first = date('Y/m/d H:i:s', $msg->first);
+            #$msg->last = date('Y/m/d H:i:s', $msg->last);
             $data = array('message' => $msg);
           }
           return $data;
         }
-    }
+    }#
     public function query_but_no_update_db($ip){
         $command="whois ".$ip;
         //$result=shell_exec($command);
@@ -1029,80 +1050,6 @@ class WhoisController extends Controller
             $whois->save();
           }
         }
-        // preg_match("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) {0,1}- {0,1}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/",$data, $ip);
-        // //print_r(count($ip));
-        // if(count($ip)>=3){
-        //   $ip_begin=bindec(decbin(ip2long($ip[1])));
-        //   $ip_end=bindec(decbin(ip2long($ip[2])));
-        //   $ip_range_str=$ip[1].$ip[2];
-        //   $hash=md5($ip_begin.$ip_end);
-        //   //$hash=md5($ip_range_str);
-        //   //print_r($ip);
-        //   $whois=new Whois;
-        //   $whois->ip_begin=$ip_begin;
-        //   $whois->ip_end=$ip_end;
-        //   $whois->content=$data;
-        //   $whois->hash=$hash;
-        //   $whois->save();
-        // }else{
-        //   //x.x.x.x/n
-        //   preg_match("/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/",$data, $ip);
-        //   if(count($ip)>=3){
-        //     //print_r($ip);
-        //     $ip1=ip_n_to_ip($ip[1],$ip[2]);
-        //     $ip_range_str=$ip1[1].$ip1[2];
-        //     //$hash=md5($ip_range_str);
-        //     $ip_begin=bindec(decbin(ip2long($ip1[1])));
-        //     $ip_end=bindec(decbin(ip2long($ip1[2])));
-        //     $hash=md5($ip_begin.$ip_end);
-        //     $whois=new Whois;
-        //     $whois->ip_begin=$ip_begin;
-        //     $whois->ip_end=$ip_end;
-        //     $whois->content=$data;
-        //     $whois->hash=$hash;
-        //     $whois->save();
-        //     //print_r($ip1);
-        //   }else{
-        //     //x.x.x/n
-        //     preg_match("/inetnum:(\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})/",$data, $ip);
-        //     if(count($ip)>=3){
-        //       //print_r($ip);
-        //       $ip2=ip_n_to_ip($ip[1],$ip[2]);
-        //       $ip_range_str=$ip2[1].$ip2[2];
-        //       //$hash=md5($ip_range_str);
-        //       $ip_begin=bindec(decbin(ip2long($ip2[1])));
-        //       $ip_end=bindec(decbin(ip2long($ip2[2])));
-        //       $hash=md5($ip_begin.$ip_end);
-        //       $whois=new Whois;
-        //       $whois->ip_begin=$ip_begin;
-        //       $whois->ip_end=$ip_end;
-        //       $whois->content=$data;
-        //       $whois->hash=$hash;
-        //       $whois->save();
-        //       //print_r($ip2);
-        //     }else{
-        //       //x.x/n
-        //       preg_match("/inetnum:(\d{1,3}\.\d{1,3})\/(\d{1,2})/",$data, $ip);
-        //       if(count($ip)>=3){
-        //         $ip3=ip_n_to_ip($ip[1],$ip[2]);
-        //         $ip_range_str=$ip3[1].$ip3[2];
-        //         //$hash=md5($ip_range_str);
-        //         $ip_begin=bindec(decbin(ip2long($ip3[1])));
-        //         $ip_end=bindec(decbin(ip2long($ip3[2])));
-        //         $hash=md5($ip_begin.$ip_end);
-        //         $whois=new Whois;
-        //         $whois->ip_begin=$ip_begin;
-        //         $whois->ip_end=$ip_end;
-        //         $whois->content=$data;
-        //         $whois->hash=$hash;
-        //         $whois->save();
-        //         //print_r($ip3);
-        //       }else{
-        //         //print_r("no respect query data!");
-        //       }
-        //     }
-        //   }
-        // }
     }
 
     /**

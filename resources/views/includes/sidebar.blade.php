@@ -40,7 +40,7 @@
                       <a href="/ipquery"><i class="fa fa-search"></i>IP Query</a>
                     </li>
                     <li>
-                      <a href="/whois"><i class="fa fa-search"></i>Whois Query</a>
+                      <a href="whois"><i class="fa fa-search"></i>Whois Query</a>
                     </li>
                 </ul>
             </div>

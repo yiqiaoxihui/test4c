@@ -45,7 +45,7 @@
       <thead>
         <tr>
           <th data-field="id">id</th>
-          <!-- <th data-field="_id" hidden>ID</th> -->
+          
           <th data-field="ip_begin" data-sortable="ture">ip_begin</th>
           <th data-field="ip_end">ip_end</th>
 
@@ -124,16 +124,24 @@
     function detailFormatter(index, row) {
       var html = [];
       var id= row['_id'];
-      $.ajax({
-        async: false,
-        data:{type: 'detail', id: id},
-        success:function(data){
-          var content=data.message.content;
-          console.log("id:"+id+" detail:"+content);
-          content=content.replace(/\n/g,"</br>");
-          html.push('<p style="word-wrap:break-word; word-break:break-all; width:auto;height:400px;overflow-y:scroll;">' + content + '</p>');
-        }
-      });
+      console.log(id);
+      if(id==undefined){
+        id=row['id'];
+      }
+      console.log(id);
+      content=row['content'].replace(/\n/g,"</br>");
+      html.push('<p style="word-wrap:break-word; word-break:break-all; width:auto;height:400px;overflow-y:scroll;">' + content + '</p>');
+      //事实上row数组中已经包含conent，没有必要下面的查询了。
+      // $.ajax({
+      //   async: false,
+      //   data:{type: 'detail', id: id},
+      //   success:function(data){
+      //     var content=data.message.content;
+      //     console.log("id:"+id+" detail:"+content);
+      //     content=content.replace(/\n/g,"</br>");
+      //     html.push('<p style="word-wrap:break-word; word-break:break-all; width:auto;height:400px;overflow-y:scroll;">' + content + '</p>');
+      //   }
+      // });
       return html.join('');
     }
     function changeType(obj){
